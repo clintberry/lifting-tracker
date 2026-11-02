@@ -6,9 +6,9 @@ schedule: rotate
 
 defaults:
   prep: 5-8m light cardio
-  increment: 5lb
+  increment: 2.5lb
   bar: 45lb
-  progress: +2.5-5lb
+  progress: +2.5lb
   rest:
     top: 3m
     work: 3m
@@ -18,8 +18,8 @@ exercises:
   # Main lifts
   bench-press:        { name: Bench Press, equipment: barbell, options: [Flat, Low-Incline] }
   overhead-press:     { name: Overhead Press, equipment: barbell }
-  squat:              { name: Squat, equipment: barbell, progress: +5-10lb }
-  deadlift:           { name: Deadlift, equipment: barbell, progress: +5-10lb }
+  squat:              { name: Squat, equipment: barbell }
+  deadlift:           { name: Deadlift, equipment: barbell }
 
   # Presses / rows / pulls
   seated-db-press:    { name: Seated Dumbbell Press, equipment: dumbbell }

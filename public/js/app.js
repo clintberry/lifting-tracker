@@ -334,9 +334,11 @@
     } else if (cur) {
       html += '<div class="field"><label>Program<small>' + esc(cur.file) + '</small></label><span>' + esc(cur.program.name) + '</span></div>';
     }
-    html += '<div class="field"><label>Plates you have<small>Per plate, comma separated</small></label>' +
+    html += '<div class="field"><label>Plates you have<small>Per plate, comma separated. Plates under 5 count as one per side.</small></label>' +
       '<input type="text" data-setting="plates" value="' + esc(s.plates.join(', ')) + '"></div>' +
-      '</section><p class="tv-hint">Bar weights, increments and progression come from the program file. Edit the YAML and refresh to change them.</p>';
+      '<div class="field"><label>Dumbbells<small>2.5 lb steps up to this weight, then 5 lb steps</small></label>' +
+      '<input type="number" inputmode="decimal" data-setting="dumbbellFineUpTo" value="' + esc(s.dumbbellFineUpTo) + '"></div>' +
+      '</section><p class="tv-hint">Top-set weights go up by the smallest jump you can load (at least the program’s step, +2.5 lb) when you hit the top of the rep range. Bar weights and steps come from the program file.</p>';
     $app.innerHTML = html;
   }
 

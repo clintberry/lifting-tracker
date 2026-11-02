@@ -15,7 +15,8 @@
 
 var OL = OpenLifting;
 
-var DEFAULT_SETTINGS = { plates: [45, 35, 25, 10, 5] };
+// dumbbellFineUpTo: dumbbells come in 2.5 lb steps up to this weight, 5 lb steps above it.
+var DEFAULT_SETTINGS = { plates: [45, 35, 25, 10, 5, 1.75], dumbbellFineUpTo: 35 };
 
 function emptyState() {
   return { settings: {}, active: null, restEndsAt: 0, restTotal: 0, restMax: 0 };
@@ -26,6 +27,7 @@ function getSettings(state) {
   for (k in DEFAULT_SETTINGS) s[k] = DEFAULT_SETTINGS[k];
   for (k in (state && state.settings) || {}) s[k] = state.settings[k];
   s.plates = s.plates.slice().sort(function (a, b) { return b - a; });
+  s.dumbbellFineUpTo = Number(s.dumbbellFineUpTo) || 0;
   return s;
 }
 
@@ -139,10 +141,6 @@ function lastOption(ctx, exercise) {
 
 /* ---------- Weights ---------- */
 
-function minPlate(s) { return s.plates[s.plates.length - 1] || 2.5; }
-
-function roundTo(w, step) { return step ? Math.round(w / step) * step : w; }
-
 function fmtNum(w) { return String(Math.round(w * 10) / 10); }
 
 function barWeight(ctx, exercise) {
@@ -150,27 +148,66 @@ function barWeight(ctx, exercise) {
   return ex && ex.bar != null ? ex.bar : ctx.program.defaults.bar;
 }
 
-// The program's increment, but never smaller than what your plates can load.
+// The program's increment (the step for cables, machines and anything without its own rule).
 function increment(ctx, exercise) {
   var ex = ctx.program.exercises[exercise] || {};
-  var inc = ex.increment != null ? ex.increment : ctx.program.defaults.increment;
-  if (ex.equipment === 'barbell') return Math.max(inc, minPlate(ctx.settings) * 2);
-  if (ex.equipment === 'weighted-bodyweight') return Math.max(inc, minPlate(ctx.settings));
-  return inc;
+  return ex.increment != null ? ex.increment : ctx.program.defaults.increment;
 }
 
 function isBarbell(ctx, exercise) { return (ctx.program.exercises[exercise] || {}).equipment === 'barbell'; }
 
+// Plate totals you can make on one side (or a belt): any number of the full plates (5 lb and up),
+// plus at most one of each fractional plate (under 5 lb).
+function plateSums(plates, max) {
+  var full = plates.filter(function (p) { return p >= 5; }), frac = plates.filter(function (p) { return p < 5; });
+  var step = full.length ? full[full.length - 1] : 5, subs = [0], out = [];
+  frac.forEach(function (f) { subs = subs.concat(subs.map(function (x) { return x + f; })); });
+  for (var k = 0; k * step <= max; k++) subs.forEach(function (x) { out.push(Math.round((k * step + x) * 100) / 100); });
+  return out;
+}
+
+// Every weight you can actually load for an exercise, ascending.
+function loadable(ctx, exercise, bw) {
+  ctx.loadCache = ctx.loadCache || {};
+  var key = exercise + (bw ? ':bw' : '');
+  if (ctx.loadCache[key]) return ctx.loadCache[key];
+  var eq = (ctx.program.exercises[exercise] || {}).equipment, s = ctx.settings, list = [], w;
+  if (bw) {
+    // Belt plates on top; band assistance (negative) in 2.5 steps.
+    for (w = -150; w < 0; w += 2.5) list.push(w);
+    list = list.concat(plateSums(s.plates, 200));
+  } else if (eq === 'barbell') {
+    var bar = barWeight(ctx, exercise);
+    list = plateSums(s.plates, 400).map(function (x) { return bar + 2 * x; });
+  } else if (eq === 'dumbbell') {
+    for (w = 2.5; w <= 200; w += w < s.dumbbellFineUpTo - 1e-9 ? 2.5 : 5) list.push(w);
+  } else {
+    var inc = increment(ctx, exercise) || 2.5;
+    for (w = inc; w <= 600; w += inc) list.push(Math.round(w * 100) / 100);
+  }
+  list = list.filter(function (x, i, a) { return a.indexOf(x) === i; }).sort(function (a, b) { return a - b; });
+  ctx.loadCache[key] = list;
+  return list;
+}
+
 function lowest(ctx, exercise, bw) {
   // Bodyweight loads can go below zero: negative added weight is band assistance.
   if (bw) return -Infinity;
-  return isBarbell(ctx, exercise) ? barWeight(ctx, exercise) : increment(ctx, exercise);
+  return loadable(ctx, exercise, false)[0];
 }
 
-// Round a calculated load to something loadable (bar + plate steps for barbells).
+// Round a calculated load to the nearest weight you can load.
 function roundLoad(ctx, exercise, w, bw) {
-  var base = !bw && isBarbell(ctx, exercise) ? barWeight(ctx, exercise) : 0;
-  return Math.max(base + roundTo(w - base, increment(ctx, exercise)), lowest(ctx, exercise, bw));
+  var list = loadable(ctx, exercise, bw), best = w, d = Infinity;
+  list.forEach(function (x) { if (Math.abs(x - w) < d - 1e-9) { d = Math.abs(x - w); best = x; } });
+  return best;
+}
+
+// Smallest loadable weight at or above w.
+function loadAtLeast(ctx, exercise, w, bw) {
+  var list = loadable(ctx, exercise, bw);
+  for (var i = 0; i < list.length; i++) if (list[i] >= w - 1e-9) return list[i];
+  return w;
 }
 
 function isBW(ctx, step, exercise) {
@@ -194,7 +231,8 @@ function suggestTW(ctx, def) {
     if (!entryCounts(ctx, log, entry)) return false;
     var sets = (entry.sets || []).map(logSet).filter(function (s) { return !s.skipped; });
     var top = sets.filter(function (s) { return s.kind === 'top'; })[0];
-    var tw = entry.tw != null ? Number(entry.tw) : top ? top.weight : null;
+    // What you actually lifted on the top set beats the planned TW (you may have changed it mid-workout).
+    var tw = top && top.weight != null ? top.weight : entry.tw != null ? Number(entry.tw) : null;
     if (tw == null) return false;
     last = { tw: tw, sets: sets, top: top };
     return true;
@@ -221,9 +259,10 @@ function suggestTW(ctx, def) {
   if (rule === 'none' || !hit) {
     return { tw: last.tw, why: 'Last: ' + desc + (rule === 'none' ? '' : ' (hit the top of the range to add weight)') };
   }
-  // Smallest valid step for the increment that is at least the rule's minimum.
-  var step = increment(ctx, def.exercise), add = Math.ceil(rule.add.min / step - 1e-9) * step;
-  return { tw: last.tw + add, why: 'Last: ' + desc + ' → +' + fmtNum(add), up: true };
+  // The lightest weight you can load that is at least the rule's minimum step up.
+  var bw = eq === 'weighted-bodyweight' || eq === 'bodyweight';
+  var next = loadAtLeast(ctx, def.exercise, last.tw + rule.add.min, bw), add = next - last.tw;
+  return { tw: next, why: 'Last: ' + desc + ' → +' + fmtNum(add), up: true };
 }
 
 function memberDef(ctx, session, mi) {
