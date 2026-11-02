@@ -1,0 +1,91 @@
+/* Sized in vw/vh so it fills any TV. Generous padding keeps clear of overscan. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  background: #0b0d11;
+  color: #f2f4f7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  font-size: 1.6vw;
+  cursor: none;
+}
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: #8b93a1; }
+.accent { color: #ff7a1a; }
+
+#tv { height: 100%; padding: 3vh 3.5vw; display: flex; flex-direction: column; }
+.waiting { margin: auto; font-size: 3vw; color: #8b93a1; }
+
+.tv-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.7vw; color: #8b93a1; }
+.tv-top b { color: #f2f4f7; }
+.tv-top .clock { font-size: 2vw; font-weight: 700; color: #f2f4f7; }
+.offline { color: #ff8080; margin-left: 1vw; }
+
+.tv-main { flex: 1; display: flex; gap: 3vw; min-height: 0; margin-top: 2vh; }
+
+/* ---- Current set ---- */
+.now { flex: 1.7; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.now .block { font-size: 1.6vw; color: #ff7a1a; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.now h1 { font-size: 4.6vw; margin: 0.5vh 0 0; line-height: 1.05; }
+.now .setline { font-size: 2.6vw; margin-top: 1.5vh; color: #c9ced6; }
+.now .setline b { color: #f2f4f7; }
+.now .weight { font-size: 15vw; font-weight: 800; line-height: 0.95; margin-top: 2vh; letter-spacing: -0.03em; }
+.now .weight .unit { font-size: 4vw; font-weight: 600; color: #8b93a1; letter-spacing: 0; margin-left: 1vw; }
+.now .weight .reps { font-size: 7vw; color: #ff7a1a; font-weight: 700; margin-left: 2vw; letter-spacing: 0; }
+.now .sub { font-size: 2.2vw; color: #8b93a1; margin-top: 0.5vh; }
+.now .plate-wrap { display: flex; align-items: center; gap: 2vw; margin-top: 3vh; }
+.now .plates { --plate-h: 11vw; }
+.now .plates .plate { font-size: 1.5vw; }
+.now .plate-text { font-size: 2.4vw; color: #c9ced6; }
+.now .plate-text .change { font-size: 2.4vw; color: #ffcc4d; font-weight: 700; margin-top: 1vh; }
+.now .note { font-size: 2vw; color: #ffcc4d; margin-top: 2.5vh; }
+.now .last { font-size: 2vw; color: #8b93a1; margin-top: 1vh; }
+
+/* ---- Side column ---- */
+.side { flex: 1; display: flex; flex-direction: column; gap: 2.5vh; min-width: 0; }
+.rest {
+  background: #1a1e26;
+  border-radius: 1.5vw;
+  padding: 2.5vh 2vw;
+  position: relative;
+  overflow: hidden;
+}
+.rest .lbl { font-size: 1.6vw; color: #8b93a1; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+.rest .time { font-size: 9vw; font-weight: 800; line-height: 1; margin-top: 1vh; }
+.rest .rest-max { font-size: 1.6vw; color: #8b93a1; margin-top: 0.5vh; }
+.rest .track { position: absolute; left: 0; bottom: 0; height: 0.8vh; background: #ff7a1a; }
+.rest.over { background: #123522; }
+.rest.over .time { color: #35c47a; }
+
+.progress-line { font-size: 1.7vw; color: #8b93a1; }
+.progress-bar { height: 0.7vh; background: #262b35; border-radius: 1vh; margin-top: 1vh; overflow: hidden; }
+.progress-bar div { height: 100%; background: #ff7a1a; }
+
+.upnext h2 { font-size: 1.6vw; color: #8b93a1; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 1vh; }
+.upnext ol { list-style: none; margin: 0; padding: 0; }
+.upnext li { display: flex; justify-content: space-between; gap: 1vw; padding: 1.2vh 0; border-top: 1px solid #232833; font-size: 1.9vw; }
+.upnext li:first-child { border-top: 0; }
+.upnext li .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upnext li .n small { color: #8b93a1; font-size: 1.5vw; margin-left: 0.6vw; }
+.upnext li .w { font-weight: 700; white-space: nowrap; }
+
+/* ---- Overview (no workout running) ---- */
+.overview { flex: 1; display: flex; flex-direction: column; margin-top: 2vh; min-height: 0; }
+.overview .eyebrow { color: #ff7a1a; font-size: 1.7vw; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.overview h1 { font-size: 5vw; margin: 0.5vh 0 0; }
+.overview .focus { font-size: 2.4vw; color: #8b93a1; }
+.overview .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(26vw, 1fr));
+  gap: 1.5vw;
+  margin-top: 3vh;
+}
+.overview .ex { background: #161a21; border-radius: 1.2vw; padding: 2vh 1.6vw; }
+.overview .ex .name { font-size: 2vw; font-weight: 600; }
+.overview .ex .w { font-size: 4vw; font-weight: 800; margin-top: 0.5vh; }
+.overview .ex .w small { font-size: 1.6vw; color: #8b93a1; font-weight: 500; margin-left: 0.5vw; }
+.overview .ex .pt { font-size: 1.5vw; color: #8b93a1; }
+.overview .hint { margin-top: auto; font-size: 1.8vw; color: #8b93a1; }
+
+.done-msg { margin: auto; text-align: center; }
+.done-msg h1 { font-size: 6vw; margin: 0; }
+.done-msg p { font-size: 2.4vw; color: #8b93a1; }

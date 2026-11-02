@@ -1,0 +1,15 @@
+{
+  "name": "lifting-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Radically Simple Muscle workout tracker for phone and TV",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "js-yaml": "^5.5.0"
+  }
+}

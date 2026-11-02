@@ -1,0 +1,44 @@
+# Push to main → copy the app to the exe.dev VM and restart it.
+# The VM's data/ (state + workout logs) is never touched.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.EXE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EXE_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Copy files
+        run: |
+          rsync -az --delete \
+            --exclude .git --exclude .github --exclude node_modules --exclude data \
+            ./ lifting.exe.xyz:lifting-tracker/
+
+      - name: Install and restart
+        run: |
+          ssh lifting.exe.xyz 'set -e
+            cd ~/lifting-tracker
+            npm ci --omit=dev --no-audit --no-fund
+            sudo systemctl restart lifting
+            sleep 2
+            systemctl is-active lifting
+            curl -fsS -o /dev/null localhost:8000/api/state'

@@ -1,0 +1,304 @@
+openlifting: 1
+name: Radically Simple Muscle
+id: rsm
+units: lb
+schedule: rotate
+
+defaults:
+  prep: 5-8m light cardio
+  increment: 5lb
+  bar: 45lb
+  progress: +2.5-5lb
+  rest:
+    top: 3m
+    work: 3m
+    backoff: 3m
+
+exercises:
+  # Main lifts
+  bench-press:        { name: Bench Press, equipment: barbell, options: [Flat, Low-Incline] }
+  overhead-press:     { name: Overhead Press, equipment: barbell }
+  squat:              { name: Squat, equipment: barbell, progress: +5-10lb }
+  deadlift:           { name: Deadlift, equipment: barbell, progress: +5-10lb }
+
+  # Presses / rows / pulls
+  seated-db-press:    { name: Seated Dumbbell Press, equipment: dumbbell }
+  incline-db-bench:   { name: Incline DB Bench Press, equipment: dumbbell }
+  lever-row:          { name: Lever Rows, equipment: machine }
+  seated-cable-row:   { name: Seated Cable Rows, equipment: cable }
+  lat-pulldown:       { name: Lat Pull-Downs, equipment: cable }
+  weighted-chin-up:   { name: Weighted Chin-Ups, equipment: weighted-bodyweight }
+  weighted-dip:       { name: Weighted Dips, equipment: weighted-bodyweight }
+
+  # Chest / shoulders
+  cable-fly-high-to-low: { name: High-to-Low Cable Flys, equipment: cable }
+  cable-fly-low-to-high: { name: Low-to-High Cable Flys, equipment: cable }
+  reverse-db-fly:     { name: Reverse DB Flys, equipment: dumbbell }
+  db-lateral-raise:   { name: DB Lateral Raises, equipment: dumbbell }
+  front-plate-raise:  { name: Front Plate Raises, equipment: plate, progress: none }
+  shrug:              { name: Shrugs, equipment: dumbbell, options: [Dumbbell, Trap Bar] }
+
+  # Arms
+  db-hammer-curl:     { name: DB Hammer Curls, equipment: dumbbell }
+  incline-db-curl:    { name: Incline DB Curls, equipment: dumbbell }
+  ez-bar-curl:        { name: Narrow-Grip EZ-Bar Curls, equipment: barbell, bar: 25lb }
+  barbell-curl:       { name: Barbell Curls, equipment: barbell }
+  triceps-pressdown:  { name: Triceps Press-Downs, equipment: cable }
+  lying-triceps-ext:  { name: Lying Triceps Extensions, equipment: barbell }
+
+  # Abs
+  cable-crunch:       { name: Cable Crunches, equipment: cable }
+  hanging-leg-raise:  { name: Hanging Leg Raises, equipment: bodyweight, progress: none }
+
+workouts:
+
+  # ───────────────────────── WEEK 1 ─────────────────────────
+
+  - id: w1-a
+    name: Week 1 · A — Bench Focus
+    week: 1
+    blocks:
+      - exercise: bench-press
+        sets:
+          - { warmup: 10,     weight: bar }
+          - { warmup: 5,      weight: 45% }
+          - { warmup: 5,      weight: 55% }
+          - { warmup: 3,      weight: 65% }
+          - { warmup: 2,      weight: 75% }
+          - { warmup: 1,      weight: 85%, rest: 3-5m }
+          - { top: 5-7,       weight: TW,  rest: 3-5m }
+          - { backoff: AMRAP, weight: 85% }
+
+      - exercise: seated-db-press
+        sets:
+          - { warmup: 8,      weight: 60% }
+          - { warmup: 5,      weight: 80%, rest: 3m }
+          - { top: 8-10,      weight: TW,  rest: 3m }
+          - { backoff: AMRAP, weight: 85% }
+          - { drop: AMRAP,    weight: -10lb }
+          - { drop: AMRAP,    weight: -10lb }
+
+      - exercise: lever-row
+        sets:
+          - { warmup: 8,      weight: 65% }
+          - { warmup: 5,      weight: 85%, rest: 3m }
+          - { top: 8-10,      weight: TW,  rest: 3m }
+          - { backoff: AMRAP, weight: 90%, rest: 3m }
+          - { backoff: AMRAP, weight: 90% }
+
+      - superset:
+          - exercise: cable-fly-high-to-low
+            sets:
+              - { work: 10-15, sets: 3, weight: TW, rest: 3m }
+          - exercise: db-hammer-curl
+            sets:
+              - { top: 8-10,      weight: TW }
+              - { backoff: AMRAP, weight: 85% }
+              - { drop: AMRAP,    weight: -10lb }
+              - { drop: AMRAP,    weight: -10lb }
+        notes: Do the hammer curls during the fly rest.
+
+  - id: w1-b
+    name: Week 1 · B — Squat Focus
+    week: 1
+    blocks:
+      - exercise: squat
+        sets:
+          - { warmup: 10,     weight: bar }
+          - { warmup: 5,      weight: 35% }
+          - { warmup: 5,      weight: 50% }
+          - { warmup: 3,      weight: 65% }
+          - { warmup: 2,      weight: 80% }
+          - { warmup: 1,      weight: 90%, rest: 3-5m }
+          - { top: 3-5,       weight: TW }
+          - backoff: AMRAP
+            weight: 85%
+            optional: { top_reps_at_least: 5 }
+            note: Hit 5? Back-off is optional — reward!
+
+      - exercise: deadlift
+        label: Light Deadlift
+        progress: none
+        sets:
+          - { work: 5, sets: 3, weight: 85% of deadlift, rest: 3m }
+
+      - exercise: cable-crunch
+        sets:
+          - { warmup: any,    weight: light }
+          - { top: 8-12,      weight: TW,  rest: 3m }
+          - { backoff: AMRAP, weight: 90% }
+          - { drop: AMRAP,    weight: -10lb }
+          - { drop: AMRAP,    weight: -10lb }
+
+  - id: w1-c
+    name: Week 1 · C — Bodybuilding
+    week: 1
+    blocks:
+      - exercise: lat-pulldown
+        sets:
+          - { warmup: any,      weight: light }
+          - { warmup: any,      weight: light, optional: true }
+          - { top: 8-10,        weight: TW,  rest: 3m }
+          - { backoff: AMRAP,   weight: 90%, rest: 20-30s }
+          - { restpause: AMRAP, rest: 20-30s }
+          - { restpause: AMRAP }
+
+      - exercise: weighted-dip
+        sets:
+          - { warmup: 10,     weight: BW }
+          - { warmup: 5,      weight: 50% }
+          - { top: 8-10,      weight: BW+TW, rest: 3m }
+          - { work: 8-10,     weight: BW+TW, note: Reduce 10–20 lb if needed }
+          - { drop: AMRAP,    weight: BW }
+
+      - exercise: incline-db-curl
+        sets:
+          - { warmup: any,    weight: light }
+          - { top: 8-10,      weight: TW }
+          - { backoff: AMRAP, weight: 85% }
+          - { drop: AMRAP,    weight: -10lb }
+          - { drop: AMRAP,    weight: -10lb }
+
+      - exercise: triceps-pressdown
+        sets:
+          - { top: 8-10,      weight: TW }
+          - { backoff: AMRAP, weight: 85% }
+          - { drop: AMRAP,    weight: -10lb }
+          - { drop: AMRAP,    weight: -10lb }
+
+      - exercise: reverse-db-fly
+        sets:
+          - { top: 10-15,     weight: TW }
+          - { backoff: AMRAP, weight: 85% }
+          - { drop: AMRAP,    weight: -10lb }
+          - { drop: AMRAP,    weight: -10lb }
+
+      - exercise: shrug
+        sets:
+          - { top: 10-15,       weight: TW,  rest: 3m }
+          - { backoff: AMRAP,   weight: 85%, rest: 20-30s }
+          - { restpause: AMRAP, rest: 20-30s }
+          - { restpause: AMRAP }
+
+  # ───────────────────────── WEEK 2 ─────────────────────────
+
+  - id: w2-a
+    name: Week 2 · A — Press Focus
+    week: 2
+    blocks:
+      - exercise: overhead-press
+        sets:
+          - { warmup: 10,     weight: bar }
+          - { warmup: 5,      weight: 45% }
+          - { warmup: 5,      weight: 55% }
+          - { warmup: 3,      weight: 65% }
+          - { warmup: 2,      weight: 75% }
+          - { warmup: 1,      weight: 85%, rest: 3-5m }
+          - { top: 5-7,       weight: TW,  rest: 3-5m }
+          - { backoff: AMRAP, weight: 85% }
+
+      - exercise: incline-db-bench
+        sets:
+          - { warmup: 8,      weight: 60% }
+          - { warmup: 5,      weight: 80%, rest: 3m }
+          - { top: 8-10,      weight: TW,  rest: 3m }
+          - { backoff: AMRAP, weight: 85% }
+          - { drop: AMRAP,    weight: -10lb }
+          - { drop: AMRAP,    weight: -10lb }
+
+      - exercise: weighted-chin-up
+        sets:
+          - { warmup: 5-8,    weight: BW,    rest: 3m }
+          - { top: 8-10,      weight: BW+TW, rest: 3m }
+          - { backoff: AMRAP, weight: BW,    rest: 3m }
+          - { backoff: AMRAP, weight: BW }
+        fallback:
+          when: Can't do 10 bodyweight reps yet
+          sets:
+            - { work: AMRAP, sets: 3, weight: BW, rest: 3m }
+
+      - superset:
+          - exercise: cable-fly-low-to-high
+            sets:
+              - { work: 10-15, sets: 3, weight: TW, rest: 3m }
+          - exercise: ez-bar-curl
+            sets:
+              - { top: 8-10,        weight: TW }
+              - { backoff: AMRAP,   weight: 85%, rest: 20s }
+              - { restpause: AMRAP, rest: 20s }
+              - { restpause: AMRAP }
+        notes: Do the EZ-bar curls during the fly rest.
+
+  - id: w2-b
+    name: Week 2 · B — Deadlift Focus
+    week: 2
+    blocks:
+      - exercise: deadlift
+        sets:
+          - { warmup: 10,     weight: bar }
+          - { warmup: 5,      weight: 35% }
+          - { warmup: 5,      weight: 50% }
+          - { warmup: 3,      weight: 65% }
+          - { warmup: 2,      weight: 80% }
+          - { warmup: 1,      weight: 90%, rest: 3-5m }
+          - { top: 3-5,       weight: TW }
+          - { backoff: AMRAP, weight: 85%, optional: { top_reps_at_least: 3 } }
+
+      - exercise: squat
+        label: Light Squat
+        progress: none
+        sets:
+          - { work: 5, sets: 3, weight: 85% of squat, rest: 3m }
+
+      - exercise: hanging-leg-raise
+        sets:
+          - { work: AMRAP, sets: 3, weight: BW, rest: 3m }
+
+  - id: w2-c
+    name: Week 2 · C — Bodybuilding
+    week: 2
+    blocks:
+      - exercise: seated-cable-row
+        sets:
+          - { warmup: any,      weight: light }
+          - { warmup: any,      weight: light, optional: true }
+          - { top: 8-10,        weight: TW,  rest: 3m }
+          - { backoff: AMRAP,   weight: 90%, rest: 20-30s }
+          - { restpause: AMRAP, rest: 20-30s }
+          - { restpause: AMRAP }
+
+      - exercise: weighted-dip
+        sets:
+          - { warmup: 10,     weight: BW }
+          - { warmup: 5,      weight: 50% }
+          - { top: 8-10,      weight: BW+TW, rest: 3m }
+          - { work: 8-10,     weight: BW+TW, note: Reduce 10–20 lb if needed }
+          - { drop: AMRAP,    weight: BW }
+
+      - exercise: barbell-curl
+        sets:
+          - { top: 8-10,        weight: TW }
+          - { backoff: AMRAP,   weight: 85%, rest: 20s }
+          - { restpause: AMRAP, rest: 20s }
+          - { restpause: AMRAP }
+
+      - exercise: lying-triceps-ext
+        sets:
+          - { warmup: 8,      weight: 70% }
+          - { warmup: 5,      weight: 85% }
+          - { top: 8-10,      weight: TW }
+          - { backoff: AMRAP, weight: 85% }
+
+      - exercise: db-lateral-raise
+        sets:
+          - { top: 10-15,     weight: TW }
+          - { backoff: AMRAP, weight: 85% }
+          - { drop: AMRAP,    weight: -10lb }
+          - { drop: AMRAP,    weight: -10lb }
+
+      - exercise: front-plate-raise
+        sets:
+          - { work: AMRAP,      weight: 45lb, rest: 3m }
+          - { work: AMRAP,      weight: 45lb, rest: 20s }
+          - { restpause: AMRAP, rest: 20s }
+          - { restpause: AMRAP }
