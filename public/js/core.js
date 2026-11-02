@@ -20,7 +20,7 @@ var OL = OpenLifting;
 //   dumbbellFineUpTo: dumbbells come in 2.5 lb steps up to this weight, 5 lb steps above it.
 //   machineStep: weight steps on cables and machines (otherwise the program's increment).
 var DEFAULT_SETTINGS = {
-  plates: [45, 35, 25, 10, 5, 1.75],
+  plates: [45, 35, 25, 10, 5, 1.25],
   bars: [
     { id: 'standard', name: 'Standard bar', weight: 45 },
     { id: 'deadlift', name: 'Deadlift bar', weight: 55 },
@@ -449,7 +449,8 @@ function platePlan(ctx, session, weights) {
   order.forEach(function (mi) {
     var idx = byMember[mi], ex = session.members[mi].exercise;
     var loads = idx.map(function (i) {
-      return plateMode(ctx, session.steps[i], ex) === 'side' ? (weights[i] - barWeight(ctx, ex)) / 2 : weights[i];
+      // Never below an empty bar (a set logged on a lighter bar before you switched bars).
+      return Math.max(0, plateMode(ctx, session.steps[i], ex) === 'side' ? (weights[i] - barWeight(ctx, ex)) / 2 : weights[i]);
     });
     var stacks = planStacks(loads, ctx.settings.plates), prev = [];
     idx.forEach(function (i, k) {
