@@ -105,6 +105,7 @@
     else if (route === 'session' && active()) renderSession();
     else if (route === 'history') renderHistory();
     else if (route.startsWith('log/')) renderLog(decodeURIComponent(route.slice(4)));
+    else if (route.startsWith('workout/')) renderWorkout(decodeURIComponent(route.slice(8)));
     else if (route === 'settings') renderSettings();
     else renderHome();
     updateRest();
@@ -126,32 +127,85 @@
   }
 
   // Top weights for a workout you haven't started, from your logs.
+  // Suggested working weight for one exercise, as preview HTML.
+  function previewWeight(def) {
+    const sug = suggestTW(ctx, def);
+    const of = def.sets.filter((s) => s.load.of)[0];
+    if (of) {
+      const base = lastTop(ctx, of.load.of);
+      return base ? fmtNum(roundLoad(ctx, def.exercise, base.weight * of.load.value / 100, false)) + '<small>' + of.load.value + '% of ' + esc(exerciseName(ctx, of.load.of)) + '</small>' : '<small>set on start</small>';
+    }
+    if (!usesTW(def)) {
+      const s = def.sets.filter((x) => x.kind !== 'warmup')[0];
+      return s.load.type === 'absolute' ? fmtNum(s.load.value) : 'BW';
+    }
+    if (sug.tw == null) return '<small>set on start</small>';
+    const top = def.sets.filter((s) => s.kind === 'top' || s.kind === 'work')[0];
+    const pl = platesFor(ctx, top, def.exercise, sug.tw);
+    return weightHTML(fmtWeight(ctx, top, def.exercise, sug.tw)) + (pl && pl.list.length ? '<span class="pt">' + esc(platesText(pl)) + '</span>' : '');
+  }
+
   function workoutPreview(w) {
     let html = '<ul class="preview">';
     w.blocks.forEach((b) => {
       OL.members(b).forEach((def) => {
-        const ex = ctx.program.exercises[def.exercise];
-        const sug = suggestTW(ctx, def);
-        const of = def.sets.filter((s) => s.load.of)[0];
-        let right;
-        if (of) {
-          const base = lastTop(ctx, of.load.of);
-          right = base ? fmtNum(roundLoad(ctx, def.exercise, base.weight * of.load.value / 100, false)) + '<small>' + of.load.value + '% of ' + esc(exerciseName(ctx, of.load.of)) + '</small>' : '<small>set on start</small>';
-        } else if (!usesTW(def)) {
-          const s = def.sets.filter((x) => x.kind !== 'warmup')[0];
-          right = s.load.type === 'absolute' ? fmtNum(s.load.value) : 'BW';
-        } else if (sug.tw == null) {
-          right = '<small>set on start</small>';
-        } else {
-          const top = def.sets.filter((s) => s.kind === 'top' || s.kind === 'work')[0];
-          const f = fmtWeight(ctx, top, def.exercise, sug.tw);
-          const pl = platesFor(ctx, top, def.exercise, sug.tw);
-          right = weightHTML(f) + (pl && pl.list.length ? '<span class="pt">' + esc(platesText(pl)) + '</span>' : '');
-        }
-        html += '<li><span>' + esc(def.label || ex.name) + '</span><span class="w num">' + right + '</span></li>';
+        html += '<li><span>' + esc(def.label || exerciseName(ctx, def.exercise)) + '</span><span class="w num">' + previewWeight(def) + '</span></li>';
       });
     });
     return html + '</ul>';
+  }
+
+  // How a planned set is loaded, in words ("90%", "−10", "light").
+  function loadText(load) {
+    switch (load.type) {
+      case 'tw': return 'top-set weight';
+      case 'percent': return load.value + '%' + (load.of ? ' of ' + exerciseName(ctx, load.of) : '');
+      case 'relative': return (load.delta > 0 ? '+' : '−') + fmtNum(Math.abs(load.delta));
+      case 'absolute': return fmtNum(load.value);
+      case 'bar': return 'empty bar';
+      case 'light': return 'light';
+      case 'bodyweight': return load.plus === 'tw' ? 'BW + top-set weight' : load.plus ? 'BW+' + fmtNum(load.plus.value) : 'BW';
+      case 'inherit': return 'same weight';
+      default: return '';
+    }
+  }
+
+  // A workout before you start it: every exercise and planned set, then an explicit Start button.
+  function renderWorkout(id) {
+    const w = ctx.program.workouts.find((x) => x.id === id);
+    const head = '<header class="top"><a class="btn ghost" href="#">‹ Home</a>';
+    if (!w) {
+      $app.innerHTML = head + '<h1>Not found</h1><span></span></header><p class="loading">No workout called ' + esc(id) + '.</p>';
+      return;
+    }
+    const parts = w.name.split(' — ');
+    let html = head + '<div class="title"><h1>' + esc(parts[0]) + '</h1><div>' + esc(parts[1] || '') + '</div></div><span></span></header>';
+    if (w.id === nextWorkoutId(ctx)) html += '<div class="eyebrow">Up next</div>';
+    if (w.prep) html += '<p class="focus">Prep: ' + esc(w.prep) + '</p>';
+    if (w.notes) html += '<p class="focus">' + esc(w.notes) + '</p>';
+    w.blocks.forEach((b) => {
+      html += '<section class="card block">';
+      if (b.type === 'superset') html += '<div class="eyebrow">Superset</div>' + (b.notes ? '<div class="note">' + esc(b.notes) + '</div>' : '');
+      OL.members(b).forEach((def) => {
+        html += '<div class="plan-ex"><div class="plan-head"><h3>' + esc(def.label || exerciseName(ctx, def.exercise)) + '</h3>' +
+          '<span class="w num">' + previewWeight(def) + '</span></div>' +
+          (def.notes ? '<div class="note">' + esc(def.notes) + '</div>' : '');
+        const total = {}, seen = {};
+        def.sets.forEach((x) => { total[x.kind] = (total[x.kind] || 0) + 1; });
+        def.sets.forEach((x) => {
+          seen[x.kind] = (seen[x.kind] || 0) + 1;
+          const label = (KIND_LABEL[x.kind] || x.kind) + (total[x.kind] > 1 ? ' ' + seen[x.kind] : '');
+          html += '<div class="logset' + (x.kind === 'warmup' ? ' warm' : '') + '"><span class="lbl">' + esc(label) +
+            (x.optional ? ' <span class="tag">optional</span>' : '') + (x.note ? '<small>' + esc(x.note) + '</small>' : '') + '</span>' +
+            '<span class="w num">' + esc(loadText(x.load)) + '</span><span class="r num">× ' + esc(fmtReps(x.reps)) + '</span></div>';
+        });
+        if (def.fallback) html += '<div class="note">Fallback: ' + esc(def.fallback.when) + '</div>';
+        html += '</div>';
+      });
+      html += '</section>';
+    });
+    html += '<div class="start-bar"><button class="btn primary big" data-start="' + esc(w.id) + '">Start workout</button></div>';
+    $app.innerHTML = html;
   }
 
   function renderHome() {
@@ -177,8 +231,8 @@
     html += '<h3 class="section-title">' + (se ? 'Start a different workout' : 'Or pick a workout') + '</h3><div class="picker">';
     p.workouts.forEach((w) => {
       const parts = w.name.split(' — ');
-      html += '<button data-start="' + esc(w.id) + '" class="' + (w.id === next.id ? 'next' : '') + '"><b>' +
-        esc(parts[0]) + '</b><span>' + esc(parts[1] || '') + '</span></button>';
+      html += '<a href="#workout/' + encodeURIComponent(w.id) + '" class="' + (w.id === next.id ? 'next' : '') + '"><b>' +
+        esc(parts[0]) + '</b><span>' + esc(parts[1] || '') + '</span></a>';
     });
     html += '</div>';
 
@@ -655,7 +709,7 @@
 
   window.addEventListener('hashchange', () => {
     render();
-    if (location.hash.startsWith('#log/')) window.scrollTo(0, 0);
+    if (/^#(log|workout)\//.test(location.hash)) window.scrollTo(0, 0);
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') load();
