@@ -213,7 +213,7 @@
     const p = ctx.program;
     const next = getWorkout(p, nextWorkoutId(ctx));
     let html = '<header class="top"><div class="title"><h1>Lifting</h1><div>' + esc(p.name) + '</div></div>' +
-      '<a class="btn ghost" href="#settings">Settings</a></header>' + programErrors();
+      '<a class="btn ghost" href="#settings">Setup</a></header>' + programErrors();
 
     if (se) {
       const w = getWorkout(p, se.workout);
@@ -321,12 +321,16 @@
     $app.innerHTML = html;
   }
 
+  // Setup: the program plus all your equipment (bars, plates, dumbbells, cable/machine steps).
   function renderSettings() {
     const s = getSettings(state);
     const ok = programs.filter((p) => p.program);
     const cur = pickProgram(programs, state);
-    let html = '<header class="top"><a class="btn ghost" href="#">‹ Home</a><h1>Settings</h1><span></span></header>' + programErrors() +
-      '<section class="card">';
+    const units = ctx ? ctx.program.units : 'lb';
+    const num = (key, value, ph) => '<input type="number" inputmode="decimal" step="any" data-setting="' + key + '" value="' + esc(value == null ? '' : value) + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + '>';
+    let html = '<header class="top"><a class="btn ghost" href="#">‹ Home</a><h1>Setup</h1><span></span></header>' + programErrors();
+
+    html += '<h3 class="section-title">Program</h3><section class="card">';
     if (ok.length > 1) {
       html += '<div class="field"><label>Program<small>From the programs/ folder</small></label><select data-setting="program">' +
         ok.map((p) => '<option value="' + esc(p.file) + '"' + (cur && cur.file === p.file ? ' selected' : '') + '>' + esc(p.program.name) + '</option>').join('') +
@@ -334,12 +338,56 @@
     } else if (cur) {
       html += '<div class="field"><label>Program<small>' + esc(cur.file) + '</small></label><span>' + esc(cur.program.name) + '</span></div>';
     }
-    html += '<div class="field"><label>Plates you have<small>Per plate, comma separated. Plates under 5 count as one per side.</small></label>' +
+    html += '</section>';
+
+    html += '<h3 class="section-title">Bars</h3><section class="card">';
+    s.bars.forEach((b, i) => {
+      html += '<div class="field bar-row"><input type="text" data-bar-name="' + i + '" value="' + esc(b.name) + '" aria-label="Bar name">' +
+        '<span class="bar-wt"><input type="number" inputmode="decimal" step="any" data-bar-weight="' + i + '" value="' + esc(b.weight) + '" aria-label="Bar weight"> ' + esc(units) + '</span>' +
+        '<button class="btn ghost danger" data-bar-del="' + i + '" aria-label="Remove ' + esc(b.name) + '">✕</button></div>';
+    });
+    html += '<div class="field"><button class="btn" data-bar-add>+ Add bar</button></div></section>';
+
+    if (ctx) {
+      const lifts = Object.keys(ctx.program.exercises).filter((id) => isBarbell(ctx, id));
+      const ex = ctx.program.exercises;
+      html += '<h3 class="section-title">Which bar each lift uses</h3><section class="card">';
+      lifts.forEach((id) => {
+        const progBar = ex[id].bar != null ? ex[id].bar : ctx.program.defaults.bar;
+        const chosen = s.barFor[id] || '';
+        html += '<div class="field"><label>' + esc(ex[id].name) + '<small>' + esc(fmtNum(barWeight(ctx, id)) + ' ' + units) + '</small></label>' +
+          '<select data-bar-for="' + esc(id) + '"><option value="">Program default (' + esc(fmtNum(progBar)) + ')</option>' +
+          s.bars.map((b) => '<option value="' + esc(b.id) + '"' + (b.id === chosen ? ' selected' : '') + '>' + esc(b.name + ' (' + fmtNum(b.weight) + ')') + '</option>').join('') +
+          '</select></div>';
+      });
+      html += '</section>';
+    }
+
+    html += '<h3 class="section-title">Plates, dumbbells, machines</h3><section class="card">' +
+      '<div class="field"><label>Plates you have<small>Per plate, comma separated. Plates under 5 count as one per side.</small></label>' +
       '<input type="text" data-setting="plates" value="' + esc(s.plates.join(', ')) + '"></div>' +
-      '<div class="field"><label>Dumbbells<small>2.5 lb steps up to this weight, then 5 lb steps</small></label>' +
-      '<input type="number" inputmode="decimal" data-setting="dumbbellFineUpTo" value="' + esc(s.dumbbellFineUpTo) + '"></div>' +
-      '</section><p class="tv-hint">Top-set weights go up by the smallest jump you can load (at least the program’s step, +2.5 lb) when you hit the top of the rep range. Bar weights and steps come from the program file.</p>';
+      '<div class="field"><label>Dumbbells<small>2.5 ' + esc(units) + ' steps up to this weight, then 5 ' + esc(units) + ' steps</small></label>' +
+      num('dumbbellFineUpTo', s.dumbbellFineUpTo) + '</div>' +
+      '<div class="field"><label>Cable &amp; machine steps<small>Smallest weight jump on the stacks</small></label>' +
+      num('machineStep', s.machineStep, ctx ? fmtNum(ctx.program.defaults.increment) : '') + '</div>' +
+      '</section><p class="tv-hint">Top-set weights go up by the smallest jump you can load (at least +2.5 ' + esc(units) + ') when you hit the top of the rep range.</p>';
     $app.innerHTML = html;
+  }
+
+  // Store one equipment setting and redraw everything that depends on it.
+  function setSetting(key, value) {
+    state.settings = state.settings || {};
+    if (value == null) delete state.settings[key];
+    else state.settings[key] = value;
+    rebuildCtx();
+    save();
+    render();
+  }
+
+  function editBars(fn) {
+    const bars = getSettings(state).bars.map((b) => Object.assign({}, b));
+    fn(bars);
+    setSetting('bars', bars);
   }
 
   function renderSession() {
@@ -628,10 +676,16 @@
   }
 
   $app.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-start],[data-chk],[data-wt],[data-finish],[data-cancel],[data-del],[data-skip],[data-opt],[data-fallback],[data-sign]');
+    const t = e.target.closest('[data-start],[data-chk],[data-wt],[data-finish],[data-cancel],[data-del],[data-skip],[data-opt],[data-fallback],[data-sign],[data-bar-add],[data-bar-del]');
     if (!t) return;
     const d = t.dataset;
-    if (d.start) start(d.start);
+    if ('barAdd' in d) editBars((bars) => bars.push({ id: 'bar' + Date.now().toString(36), name: 'New bar', weight: 45 }));
+    else if (d.barDel) {
+      const bar = getSettings(state).bars[Number(d.barDel)];
+      ask('Remove the ' + bar.name + '? Lifts using it go back to the program’s bar.', { yes: 'Remove', danger: true }).then((ok) => {
+        if (ok) editBars((bars) => bars.splice(Number(d.barDel), 1));
+      });
+    } else if (d.start) start(d.start);
     else if (d.chk) toggleSet(Number(d.chk));
     else if (d.skip) skipSet(Number(d.skip));
     else if (d.wt) overrideWeight(Number(d.wt));
@@ -691,17 +745,28 @@
     } else if (t.dataset.reps && se) {
       se.steps[Number(t.dataset.reps)].r = t.value === '' ? null : Number(t.value);
       save();
+    } else if (t.dataset.setting === 'plates') {
+      const plates = t.value.split(/[ ,]+/).map(Number).filter((n) => n > 0);
+      if (plates.length) setSetting('plates', plates);
+      else render();
+    } else if (t.dataset.setting === 'program') {
+      setSetting('program', t.value);
     } else if (t.dataset.setting) {
-      state.settings = state.settings || {};
-      if (t.dataset.setting === 'plates') {
-        const plates = t.value.split(/[ ,]+/).map(Number).filter((n) => n > 0);
-        if (plates.length) state.settings.plates = plates;
-      } else {
-        state.settings[t.dataset.setting] = t.value;
-      }
-      rebuildCtx();
-      save();
-      render();
+      const n = Number(t.value);
+      setSetting(t.dataset.setting, t.value === '' || !(n > 0) ? null : n);
+    } else if (t.dataset.barName) {
+      const name = t.value.trim();
+      if (name) editBars((bars) => { bars[Number(t.dataset.barName)].name = name; });
+      else render();
+    } else if (t.dataset.barWeight) {
+      const n = Number(t.value);
+      if (t.value !== '' && n >= 0) editBars((bars) => { bars[Number(t.dataset.barWeight)].weight = n; });
+      else render();
+    } else if (t.dataset.barFor) {
+      const map = Object.assign({}, getSettings(state).barFor);
+      if (t.value) map[t.dataset.barFor] = t.value;
+      else delete map[t.dataset.barFor];
+      setSetting('barFor', map);
     }
   });
 

@@ -15,8 +15,21 @@
 
 var OL = OpenLifting;
 
-// dumbbellFineUpTo: dumbbells come in 2.5 lb steps up to this weight, 5 lb steps above it.
-var DEFAULT_SETTINGS = { plates: [45, 35, 25, 10, 5, 1.75], dumbbellFineUpTo: 35 };
+// Your equipment. Only changed values are stored in state.settings; these fill in the rest.
+//   bars: the bars you own. barFor: which bar a barbell exercise uses (otherwise the program's bar).
+//   dumbbellFineUpTo: dumbbells come in 2.5 lb steps up to this weight, 5 lb steps above it.
+//   machineStep: weight steps on cables and machines (otherwise the program's increment).
+var DEFAULT_SETTINGS = {
+  plates: [45, 35, 25, 10, 5, 1.75],
+  bars: [
+    { id: 'standard', name: 'Standard bar', weight: 45 },
+    { id: 'deadlift', name: 'Deadlift bar', weight: 55 },
+    { id: 'ez', name: 'EZ curl bar', weight: 25 }
+  ],
+  barFor: { deadlift: 'deadlift', 'ez-bar-curl': 'ez' },
+  dumbbellFineUpTo: 35,
+  machineStep: null
+};
 
 function emptyState() {
   return { settings: {}, active: null, restEndsAt: 0, restTotal: 0, restMax: 0 };
@@ -28,6 +41,7 @@ function getSettings(state) {
   for (k in (state && state.settings) || {}) s[k] = state.settings[k];
   s.plates = s.plates.slice().sort(function (a, b) { return b - a; });
   s.dumbbellFineUpTo = Number(s.dumbbellFineUpTo) || 0;
+  s.machineStep = Number(s.machineStep) || null;
   return s;
 }
 
@@ -141,9 +155,17 @@ function lastOption(ctx, exercise) {
 
 /* ---------- Weights ---------- */
 
-function fmtNum(w) { return String(Math.round(w * 10) / 10); }
+function fmtNum(w) { return String(Math.round(w * 100) / 100); }
+
+// The bar this exercise uses: the one picked in Setup, else the program's bar weight.
+function barFor(ctx, exercise) {
+  var id = ctx.settings.barFor[exercise];
+  return ctx.settings.bars.filter(function (b) { return b.id === id; })[0] || null;
+}
 
 function barWeight(ctx, exercise) {
+  var bar = barFor(ctx, exercise);
+  if (bar) return bar.weight;
   var ex = ctx.program.exercises[exercise];
   return ex && ex.bar != null ? ex.bar : ctx.program.defaults.bar;
 }
@@ -151,7 +173,8 @@ function barWeight(ctx, exercise) {
 // The program's increment (the step for cables, machines and anything without its own rule).
 function increment(ctx, exercise) {
   var ex = ctx.program.exercises[exercise] || {};
-  return ex.increment != null ? ex.increment : ctx.program.defaults.increment;
+  if (ex.increment != null) return ex.increment;
+  return ctx.settings.machineStep || ctx.program.defaults.increment;
 }
 
 function isBarbell(ctx, exercise) { return (ctx.program.exercises[exercise] || {}).equipment === 'barbell'; }
