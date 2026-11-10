@@ -15,12 +15,28 @@
 
 var OL = OpenLifting;
 
+// Plates as [{ weight, pairs }], heaviest first. Older settings stored a plain list of weights
+// (plates of 5+ unlimited, smaller ones one pair per listing); those convert here.
+function normalizePlates(list) {
+  var byW = {};
+  (list || []).forEach(function (p) {
+    if (typeof p === 'number') byW[p] = p >= 5 ? 10 : (byW[p] || 0) + 1;
+    else if (p && p.weight > 0 && p.pairs > 0) byW[p.weight] = (byW[p.weight] || 0) + Number(p.pairs);
+  });
+  return Object.keys(byW).map(Number).sort(function (a, b) { return b - a; })
+    .map(function (w) { return { weight: w, pairs: byW[w] }; });
+}
+
 // Your equipment. Only changed values are stored in state.settings; these fill in the rest.
 //   bars: the bars you own. barFor: which bar a barbell exercise uses (otherwise the program's bar).
 //   dumbbellFineUpTo: dumbbells come in 2.5 lb steps up to this weight, 5 lb steps above it.
 //   machineStep: weight steps on cables and machines (otherwise the program's increment).
 var DEFAULT_SETTINGS = {
-  plates: [45, 35, 25, 10, 5, 2.5, 2.5, 1.25],
+  // Plates you own, as pairs (one plate per side of the bar per pair).
+  plates: [
+    { weight: 45, pairs: 4 }, { weight: 35, pairs: 2 }, { weight: 25, pairs: 2 }, { weight: 10, pairs: 2 },
+    { weight: 5, pairs: 2 }, { weight: 2.5, pairs: 2 }, { weight: 1.25, pairs: 1 }
+  ],
   bars: [
     { id: 'standard', name: 'Standard bar', weight: 45 },
     { id: 'deadlift', name: 'Deadlift bar', weight: 55 },
@@ -39,7 +55,7 @@ function getSettings(state) {
   var s = {}, k;
   for (k in DEFAULT_SETTINGS) s[k] = DEFAULT_SETTINGS[k];
   for (k in (state && state.settings) || {}) s[k] = state.settings[k];
-  s.plates = s.plates.slice().sort(function (a, b) { return b - a; });
+  s.plates = normalizePlates(s.plates);
   s.dumbbellFineUpTo = Number(s.dumbbellFineUpTo) || 0;
   s.machineStep = Number(s.machineStep) || null;
   return s;
@@ -179,14 +195,22 @@ function increment(ctx, exercise) {
 
 function isBarbell(ctx, exercise) { return (ctx.program.exercises[exercise] || {}).equipment === 'barbell'; }
 
-// Plate totals you can make on one side (or a belt): any number of the full plates (5 lb and up),
-// plus at most one of each fractional plate (under 5 lb).
-function plateSums(plates, max) {
-  var full = plates.filter(function (p) { return p >= 5; }), frac = plates.filter(function (p) { return p < 5; });
-  var step = full.length ? full[full.length - 1] : 5, subs = [0], out = [];
-  frac.forEach(function (f) { subs = subs.concat(subs.map(function (x) { return x + f; })); });
-  for (var k = 0; k * step <= max; k++) subs.forEach(function (x) { out.push(Math.round((k * step + x) * 100) / 100); });
-  return out;
+// What you have to load one side of a bar (pairs → one plate each) or a dip belt (every plate).
+function plateStock(ctx, belt) {
+  return ctx.settings.plates.map(function (p) { return { w: p.weight, n: belt ? p.pairs * 2 : p.pairs }; });
+}
+
+// Every total you can make from a stock of plates, up to max.
+function plateSums(stock, max) {
+  var sums = { 0: true };
+  stock.forEach(function (p) {
+    var next = {};
+    Object.keys(sums).forEach(function (x) {
+      for (var k = 0; k <= p.n && Number(x) + k * p.w <= max + 1e-9; k++) next[Math.round((Number(x) + k * p.w) * 100) / 100] = true;
+    });
+    sums = next;
+  });
+  return Object.keys(sums).map(Number);
 }
 
 // Every weight you can actually load for an exercise, ascending.
@@ -198,10 +222,10 @@ function loadable(ctx, exercise, bw) {
   if (bw) {
     // Belt plates on top; band assistance (negative) in 2.5 steps.
     for (w = -150; w < 0; w += 2.5) list.push(w);
-    list = list.concat(plateSums(s.plates, 200));
+    list = list.concat(plateSums(plateStock(ctx, true), 300));
   } else if (eq === 'barbell') {
     var bar = barWeight(ctx, exercise);
-    list = plateSums(s.plates, 400).map(function (x) { return bar + 2 * x; });
+    list = plateSums(plateStock(ctx, false), 600).map(function (x) { return bar + 2 * x; });
   } else if (eq === 'dumbbell') {
     for (w = 2.5; w <= 200; w += w < s.dumbbellFineUpTo - 1e-9 ? 2.5 : 5) list.push(w);
   } else {
@@ -359,18 +383,46 @@ function plateMode(ctx, st, exercise) {
   return null;
 }
 
-function greedyPlates(load, plates) {
-  var list = [], rem = Math.max(load, 0);
-  plates.forEach(function (p) {
-    while (rem >= p - 1e-9) { list.push(p); rem -= p; }
+// Fewest plates from the stock that make the load, heaviest first. If it can't be made exactly,
+// the closest you can get underneath it, with rem = what's missing.
+var fitCache = {};
+function fitPlates(load, stock) {
+  load = Math.round(Math.max(load, 0) * 100) / 100;
+  var key = load + '|' + stock.map(function (p) { return p.w + 'x' + p.n; }).join(',');
+  if (fitCache[key]) return fitCache[key];
+  var best = null, cur = [];
+  function go(i, rem) {
+    rem = Math.round(rem * 100) / 100;
+    if (best && best.rem === 0 && cur.length >= best.list.length) return;
+    if (rem === 0 || i === stock.length) {
+      if (!best || rem < best.rem || (rem === best.rem && cur.length < best.list.length)) best = { list: cur.slice(), rem: rem };
+      return;
+    }
+    var p = stock[i], max = Math.min(p.n, Math.floor(rem / p.w + 1e-9));
+    for (var k = max; k >= 0; k--) {
+      for (var j = 0; j < k; j++) cur.push(p.w);
+      go(i + 1, rem - k * p.w);
+      cur.length -= k;
+    }
+  }
+  go(0, load);
+  fitCache[key] = best;
+  return best;
+}
+
+// The stock left after some plates are already on.
+function stockMinus(stock, used) {
+  return stock.map(function (p) {
+    var n = p.n;
+    used.forEach(function (u) { if (u === p.w) n--; });
+    return { w: p.w, n: Math.max(0, n) };
   });
-  return { list: list, rem: Math.round(rem * 100) / 100 };
 }
 
 function platesFor(ctx, st, exercise, w) {
   var mode = plateMode(ctx, st, exercise);
   if (!mode || w == null || (mode === 'belt' && w < 0)) return null;
-  var g = greedyPlates(mode === 'side' ? (w - barWeight(ctx, exercise)) / 2 : w, ctx.settings.plates);
+  var g = fitPlates(mode === 'side' ? (w - barWeight(ctx, exercise)) / 2 : w, plateStock(ctx, mode === 'belt'));
   return { perSide: mode === 'side', list: g.list, rem: g.rem };
 }
 
@@ -378,11 +430,11 @@ function platesFor(ctx, st, exercise, w) {
  * Choose plates for a run of sets on the same bar so going set to set moves as few plates as
  * possible. Plates come off and go on from the outside, so a change from stack A to stack B
  * costs (plates removed above their shared base) + (plates added). Candidates for each set keep
- * some inner part of a previous set's stack and fill the rest greedily, and are capped at one
+ * some inner part of a previous set's stack and fill the rest with what's left, and are capped at one
  * plate more than the fewest possible so the bar doesn't fill up with 10s and 5s.
  * Ties go to fewer plates, then to the usual heaviest-inside order.
  */
-function planStacks(loads, plates) {
+function planStacks(loads, stock) {
   function moves(a, b) {
     var k = 0;
     while (k < a.length && k < b.length && a[k] === b[k]) k++;
@@ -401,14 +453,14 @@ function planStacks(loads, plates) {
   }
   var states = [{ list: [], rem: 0, score: 0, path: [] }];
   loads.forEach(function (load) {
-    var greedy = greedyPlates(load, plates);
+    var greedy = fitPlates(load, stock);
     var maxLen = greedy.list.length + 1;
     var cands = {};
     function consider(base) {
       var sum = 0;
       base.forEach(function (p) { sum += p; });
       if (sum > load + 1e-9) return;
-      var fill = greedyPlates(load - sum, plates);
+      var fill = fitPlates(load - sum, stockMinus(stock, base));
       var list = base.concat(fill.list);
       if (list.length > maxLen || fill.rem !== greedy.rem || !sensible(list)) return;
       cands[list.join(',')] = { list: list, rem: fill.rem };
@@ -451,7 +503,8 @@ function platePlan(ctx, session, weights) {
       // Never below an empty bar (a set logged on a lighter bar before you switched bars).
       return Math.max(0, plateMode(ctx, session.steps[i], ex) === 'side' ? (weights[i] - barWeight(ctx, ex)) / 2 : weights[i]);
     });
-    var stacks = planStacks(loads, ctx.settings.plates), prev = [];
+    var belt = plateMode(ctx, session.steps[idx[0]], ex) === 'belt';
+    var stacks = planStacks(loads, plateStock(ctx, belt)), prev = [];
     idx.forEach(function (i, k) {
       var list = stacks[k].list, n = 0;
       while (n < prev.length && n < list.length && prev[n] === list[n]) n++;

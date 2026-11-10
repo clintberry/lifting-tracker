@@ -291,3 +291,9 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .field.bar-row input[type=number] { width: 72px; }
 .field.bar-row .btn { padding: 6px 10px; }
 .field select { max-width: 55%; }
+
+/* ---- Setup: plates ---- */
+.plate-row .stepper { display: flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--muted); }
+.plate-row .stepper b { color: var(--text); font-size: 17px; min-width: 14px; text-align: right; }
+.plate-row .stepper .btn { padding: 6px 12px; }
+.plate-row .stepper .btn[disabled] { opacity: 0.35; }

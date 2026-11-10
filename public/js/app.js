@@ -363,9 +363,18 @@
       html += '</section>';
     }
 
-    html += '<h3 class="section-title">Plates, dumbbells, machines</h3><section class="card">' +
-      '<div class="field"><label>Plates you have<small>Per plate, comma separated. Plates under 5 count as one per side, so list a pair twice if you have two.</small></label>' +
-      '<input type="text" data-setting="plates" value="' + esc(s.plates.join(', ')) + '"></div>' +
+    html += '<h3 class="section-title">Plates</h3><section class="card">';
+    s.plates.forEach((p, i) => {
+      html += '<div class="field plate-row"><label>' + esc(fmtNum(p.weight) + ' ' + units) + '<small>' +
+        (p.pairs * 2) + ' plates</small></label><span class="stepper">' +
+        '<button class="btn" data-pairs="' + i + '" data-d="-1" aria-label="One less pair"' + (p.pairs <= 1 ? ' disabled' : '') + '>−</button>' +
+        '<b class="num">' + p.pairs + '</b> pair' + (p.pairs > 1 ? 's' : '') +
+        '<button class="btn" data-pairs="' + i + '" data-d="1" aria-label="One more pair">+</button>' +
+        '<button class="btn ghost danger" data-plate-del="' + i + '" aria-label="Remove ' + esc(fmtNum(p.weight)) + ' plates">✕</button></span></div>';
+    });
+    html += '<div class="field"><button class="btn" data-plate-add>+ Add plate</button></div></section>';
+
+    html += '<h3 class="section-title">Dumbbells &amp; machines</h3><section class="card">' +
       '<div class="field"><label>Dumbbells<small>2.5 ' + esc(units) + ' steps up to this weight, then 5 ' + esc(units) + ' steps</small></label>' +
       num('dumbbellFineUpTo', s.dumbbellFineUpTo) + '</div>' +
       '<div class="field"><label>Cable &amp; machine steps<small>Smallest weight jump on the stacks</small></label>' +
@@ -382,6 +391,12 @@
     rebuildCtx();
     save();
     render();
+  }
+
+  function editPlates(fn) {
+    const plates = getSettings(state).plates.map((p) => Object.assign({}, p));
+    fn(plates);
+    setSetting('plates', plates);
   }
 
   function editBars(fn) {
@@ -676,10 +691,27 @@
   }
 
   $app.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-start],[data-chk],[data-wt],[data-finish],[data-cancel],[data-del],[data-skip],[data-opt],[data-fallback],[data-sign],[data-bar-add],[data-bar-del]');
+    const t = e.target.closest('[data-start],[data-chk],[data-wt],[data-finish],[data-cancel],[data-del],[data-skip],[data-opt],[data-fallback],[data-sign],[data-bar-add],[data-bar-del],[data-pairs],[data-plate-add],[data-plate-del]');
     if (!t) return;
     const d = t.dataset;
-    if ('barAdd' in d) editBars((bars) => bars.push({ id: 'bar' + Date.now().toString(36), name: 'New bar', weight: 45 }));
+    if (d.pairs) editPlates((plates) => { const p = plates[Number(d.pairs)]; p.pairs = Math.max(1, p.pairs + Number(d.d)); });
+    else if (d.plateDel) {
+      const p = getSettings(state).plates[Number(d.plateDel)];
+      ask('Remove your ' + fmtNum(p.weight) + ' ' + ctx.program.units + ' plates?', { yes: 'Remove', danger: true }).then((ok) => {
+        if (ok) editPlates((plates) => plates.splice(Number(d.plateDel), 1));
+      });
+    } else if ('plateAdd' in d) {
+      ask('Plate weight (' + ctx.program.units + ')', { input: '', yes: 'Add' }).then((val) => {
+        const w = Number(val);
+        if (val == null || !(w > 0)) return;
+        // Adding a weight you already have adds a pair.
+        editPlates((plates) => {
+          const have = plates.find((p) => p.weight === w);
+          if (have) have.pairs++;
+          else plates.push({ weight: w, pairs: 1 });
+        });
+      });
+    } else if ('barAdd' in d) editBars((bars) => bars.push({ id: 'bar' + Date.now().toString(36), name: 'New bar', weight: 45 }));
     else if (d.barDel) {
       const bar = getSettings(state).bars[Number(d.barDel)];
       ask('Remove the ' + bar.name + '? Lifts using it go back to the program’s bar.', { yes: 'Remove', danger: true }).then((ok) => {
@@ -745,10 +777,6 @@
     } else if (t.dataset.reps && se) {
       se.steps[Number(t.dataset.reps)].r = t.value === '' ? null : Number(t.value);
       save();
-    } else if (t.dataset.setting === 'plates') {
-      const plates = t.value.split(/[ ,]+/).map(Number).filter((n) => n > 0);
-      if (plates.length) setSetting('plates', plates);
-      else render();
     } else if (t.dataset.setting === 'program') {
       setSetting('program', t.value);
     } else if (t.dataset.setting) {
