@@ -226,13 +226,6 @@ function roundLoad(ctx, exercise, w, bw) {
   return best;
 }
 
-// Smallest loadable weight at or above w.
-function loadAtLeast(ctx, exercise, w, bw) {
-  var list = loadable(ctx, exercise, bw);
-  for (var i = 0; i < list.length; i++) if (list[i] >= w - 1e-9) return list[i];
-  return w;
-}
-
 function isBW(ctx, step, exercise) {
   var eq = (ctx.program.exercises[exercise] || {}).equipment;
   return step.load.type === 'bodyweight' || eq === 'weighted-bodyweight' || eq === 'bodyweight';
@@ -282,9 +275,14 @@ function suggestTW(ctx, def) {
   if (rule === 'none' || !hit) {
     return { tw: last.tw, why: 'Last: ' + desc + (rule === 'none' ? '' : ' (hit the top of the range to add weight)') };
   }
-  // The lightest weight you can load that is at least the rule's minimum step up.
+  // The loadable weight closest to the rule's step up (ties go lighter), always heavier than last time.
   var bw = eq === 'weighted-bodyweight' || eq === 'bodyweight';
-  var next = loadAtLeast(ctx, def.exercise, last.tw + rule.add.min, bw), add = next - last.tw;
+  var target = last.tw + rule.add.min, next = null;
+  loadable(ctx, def.exercise, bw).forEach(function (x) {
+    if (x > last.tw + 1e-9 && (next == null || Math.abs(x - target) < Math.abs(next - target) - 1e-9)) next = x;
+  });
+  if (next == null) next = target;
+  var add = next - last.tw;
   return { tw: next, why: 'Last: ' + desc + ' → +' + fmtNum(add), up: true };
 }
 

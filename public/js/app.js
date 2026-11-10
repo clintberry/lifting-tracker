@@ -370,7 +370,7 @@
       num('dumbbellFineUpTo', s.dumbbellFineUpTo) + '</div>' +
       '<div class="field"><label>Cable &amp; machine steps<small>Smallest weight jump on the stacks</small></label>' +
       num('machineStep', s.machineStep, ctx ? fmtNum(ctx.program.defaults.increment) : '') + '</div>' +
-      '</section><p class="tv-hint">Top-set weights go up by the smallest jump you can load (at least +2.5 ' + esc(units) + ') when you hit the top of the rep range.</p>';
+      '</section><p class="tv-hint">Top-set weights go up by the smallest jump you can load (at least +5 ' + esc(units) + ') when you hit the top of the rep range.</p>';
     $app.innerHTML = html;
   }
 
