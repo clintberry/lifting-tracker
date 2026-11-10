@@ -20,7 +20,7 @@ var OL = OpenLifting;
 //   dumbbellFineUpTo: dumbbells come in 2.5 lb steps up to this weight, 5 lb steps above it.
 //   machineStep: weight steps on cables and machines (otherwise the program's increment).
 var DEFAULT_SETTINGS = {
-  plates: [45, 35, 25, 10, 5, 1.25],
+  plates: [45, 35, 25, 10, 5, 2.5, 2.5, 1.25],
   bars: [
     { id: 'standard', name: 'Standard bar', weight: 45 },
     { id: 'deadlift', name: 'Deadlift bar', weight: 55 },

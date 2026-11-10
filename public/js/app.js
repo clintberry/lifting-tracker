@@ -364,7 +364,7 @@
     }
 
     html += '<h3 class="section-title">Plates, dumbbells, machines</h3><section class="card">' +
-      '<div class="field"><label>Plates you have<small>Per plate, comma separated. Plates under 5 count as one per side.</small></label>' +
+      '<div class="field"><label>Plates you have<small>Per plate, comma separated. Plates under 5 count as one per side, so list a pair twice if you have two.</small></label>' +
       '<input type="text" data-setting="plates" value="' + esc(s.plates.join(', ')) + '"></div>' +
       '<div class="field"><label>Dumbbells<small>2.5 ' + esc(units) + ' steps up to this weight, then 5 ' + esc(units) + ' steps</small></label>' +
       num('dumbbellFineUpTo', s.dumbbellFineUpTo) + '</div>' +
