@@ -277,7 +277,8 @@ function suggestTW(ctx, def) {
   }
   // The loadable weight closest to the rule's step up (ties go lighter), always heavier than last time.
   var bw = eq === 'weighted-bodyweight' || eq === 'bodyweight';
-  var target = last.tw + rule.add.min, next = null;
+  // Dumbbells are logged per hand: step to the next dumbbell up (2.5 per hand where they exist).
+  var target = eq === 'dumbbell' ? last.tw : last.tw + rule.add.min, next = null;
   loadable(ctx, def.exercise, bw).forEach(function (x) {
     if (x > last.tw + 1e-9 && (next == null || Math.abs(x - target) < Math.abs(next - target) - 1e-9)) next = x;
   });
